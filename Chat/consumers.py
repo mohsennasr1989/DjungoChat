@@ -4,8 +4,8 @@ from channels.generic.websocket import WebsocketConsumer
 from django.contrib.auth import get_user_model
 from Chat.models import Message
 
-
 User = get_user_model()
+
 
 class ChatConsumer(WebsocketConsumer):
 
@@ -25,6 +25,11 @@ class ChatConsumer(WebsocketConsumer):
         }
         return self.send_chat_message(content)
 
+    command = {
+        'fetch_messages': fetch_messages,
+        'new_message': new_message
+    }
+
     def messages_to_json(self, messages):
         result = []
         for message in messages:
@@ -37,11 +42,6 @@ class ChatConsumer(WebsocketConsumer):
             'content': message.content,
             'timestamp': str(message.timestamp)
         }
-
-    command = {
-        'fetch_messages': fetch_messages,
-        'new_message': new_message
-    }
 
     def connect(self):
         self.room_name = self.scope['url_route']['kwargs']['room_name']
@@ -59,12 +59,10 @@ class ChatConsumer(WebsocketConsumer):
             self.channel_name
         )
 
-    # Receive message from WebSocket
     def receive(self, text_data):
         data = json.loads(text_data)
         return self.command[data['command']](self, data)
 
-        # Send message to room group
     def send_chat_message(self, message):
         async_to_sync(self.channel_layer.group_send)(
             self.room_group_name,
@@ -77,8 +75,6 @@ class ChatConsumer(WebsocketConsumer):
     def send_message(self, message):
         self.send(text_data=json.dumps(message))
 
-    # Receive message from room group
     def chat_message(self, event):
         message = event['message']
-        # Send message to WebSocket
         self.send(text_data=json.dumps(message))
