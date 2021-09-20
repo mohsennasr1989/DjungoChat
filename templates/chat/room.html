@@ -10,11 +10,14 @@
     <input id="chat-message-input" type="text" size="100"><br>
     <input id="chat-message-submit" type="button" value="Send">
     <script src="{% static 'reconnecting-websocket.js' %}"></script>
-    {{ room_name|json_script:"room-name" }}
+    <script src="{% static 'main.js' %}"></script>
+{#    {{ room_name|json_script:"room-name" }}#}
     <script>
-        const roomName = JSON.parse(document.getElementById('room-name').textContent);
+        var roomName = {{ room_name_json }};
+        var username = {{ username }};
+        {#const roomName = JSON.parse(document.getElementById('room-name').textContent);#}
 
-        const chatSocket = new WebSocket(
+        var chatSocket = new ReconnectingWebSocket(
             'ws://'
             + window.location.host
             + '/ws/chat/'
@@ -23,8 +26,22 @@
         );
 
         chatSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            document.querySelector('#chat-log').value += (data.message + '\n');
+            var data = JSON.parse(e.data);
+            var message = data['message'];
+            var author = message['author'];
+            var msgListTag = document.createElement('li');
+            var imgTag = document.createElement('img');
+            var pTag = document.createElement('p');
+            pTag.textContent = message['content'];
+            imgTag.src = 'http://emilcarlsson.se/assets/mikeross.png';
+            if(author === username){
+                msgListTag.className = 'sent';
+            }else{
+                msgListTag.className = 'replies';
+            }
+            msgListTag.appendChild(imgTag);
+            msgListTag.appendChild(pTag);
+            document.querySelector('#chat-log').appendChild(msgListTag);
         };
 
         chatSocket.onclose = function(e) {
@@ -42,8 +59,8 @@
             const messageInputDom = document.querySelector('#chat-message-input');
             const message = messageInputDom.value;
             chatSocket.send(JSON.stringify({
-                'message': message,
                 'command': 'new_message',
+                'message': message,
                 'from': 'mohsen'
             }));
             messageInputDom.value = '';
